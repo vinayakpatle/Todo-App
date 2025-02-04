@@ -3,44 +3,109 @@ import {useState,useRef,useEffect} from "react";
 import todo_icon from '../assets/list.png'
 import ToDoitems from './ToDoitems';
 
-const ToDo=()=>{
-    const [todoList,setTodoList]=useState([]);
-    const inputRef=useRef();
+const ToDo=({todoList,setTodoList,user_id})=>{
+    
+    const todoRef=useRef();
 
-    const Add=()=>{
-        const inputText=inputRef.current.value.trim();
+    async function Add(){
+        const todoText=todoRef.current.value.trim();
         
-        if(inputText===""){
+        if(todoText===""){
             alert("Input feild can't be empty");
             return ;
         }
 
+        // const newToDo={
+        //     id:Date.now(),
+        //     title:todoText,
+        //     status:false
+        // }
+        
+        const title=todoText;
+        const status=false;
+
+         
+
+        const response=await fetch("http://localhost:8080/api/createTodo",{
+            method:"POST",
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({
+                user_id,
+                title,
+                status
+            })
+        })
+
+        const data=await response.json();
+        
         const newToDo={
-            id:Date.now(),
-            title:inputText,
+            id:data.id,
+            user_id:user_id,
+            title:title,
             status:false
         }
-
-        setTodoList((prev)=>[...prev,newToDo]);
-        inputRef.current.value="";
+        
+        if(data.success){
+            todoRef.current.value="";
+            setTodoList((prev)=>[...prev,newToDo]);
+            console.log("successfully todo created");
+        }else{
+            alert("Error while create todo");
+        }
+        
     }
     
-    const deleteTodo=(id)=>{
-        setTodoList((prevTodos)=>{
-            return prevTodos.filter((todo)=> todo.id!==id);
+    async function deleteTodo(id){
+
+        const response=await fetch("http://localhost:8080/api/deleteTodo",{
+            method:"DELETE",
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({id})
         })
+
+        const result=await response.json();
+        if(result.success){
+            setTodoList((prevTodos)=>{
+                return prevTodos.filter((todo)=> todo.id!==id);
+            })
+        }else{
+            alert("There is some problem with deletion of todo");
+        }
+        
     }
 
-    const toggle=(id)=>{
-        setTodoList((prevTodos)=>{
-            return prevTodos.map((todo)=>{
-                if(todo.id===id){
-                    return {...todo,status:!todo.status};
-                }
-                return todo;
-            }
-            )
+    async function toggle(id){
+
+        const todoItem=todoList.find((todo)=>todo.id===id);
+        const prevStatus=todoItem.status;
+
+        console.log("prev status"+prevStatus);
+        const status=!prevStatus;
+
+        const response=await fetch("http://localhost:8080/api/updateStatus",{
+            method:"PUT",
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({
+                id,
+                status
+            })
         })
+
+        const result=await response.json();
+
+        if(result.success){
+            setTodoList((prevTodos)=>{
+                return prevTodos.map((todo)=>{
+                    if(todo.id===id){
+                        return {...todo,status:!todo.status};
+                    }
+                    return todo;
+                }
+                )
+            })
+        }else{
+            alert("Error while changing status");
+        }
     }
 
     useEffect(()=>{
@@ -48,7 +113,7 @@ const ToDo=()=>{
     },[todoList])
 
     return (
-        <div className='bg-white place-self-center rounded-xl w-11/12 max-w-md h-[550px] p-7 flex flex-col mt-10'>
+        <div className='bg-white place-self-center rounded-xl w-11/12 max-w-md min-h-[550px] max-h-[550px] overflow-auto p-7 flex flex-col mt-10'>
             
             {/*-------titile--------*/}
 
@@ -60,7 +125,7 @@ const ToDo=()=>{
             {/*-------input box--------*/}
             
             <div className='my-7 flex items-center bg-gray-200 rounded-full'>
-                <input ref={inputRef} className='bg-transparent border-0 outline-none h-14 pl-6 pr-2 placeholder:text-slate-600' type='text' placeholder='Create a new todo'></input>
+                <input ref={todoRef} className='bg-transparent border-0 outline-none h-14 pl-6 pr-2 placeholder:text-slate-600' type='text' placeholder='Create a new todo'></input>
                 <button onClick={Add} className='w-32 h-14 text-white text-lg font-medium cursor-ponter border-none bg-green-600 rounded-full ml-14' >ADD +</button>
             </div>
 
